@@ -15,8 +15,47 @@ def home():
 
 @tasks_bp.route('/tasks', methods=['GET'])
 def all_get_tasks():
-    tasks = Task.query.all()
-    return jsonify([t.to_dict() for t in tasks])
+    done_param=request.args.get('done')
+    sort_by=request.args.get('sort_by','created_at')
+    order=request.args.get('order','asc')
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 1, type=int)
+
+    allowed_sort_fields = {
+        'created_at': Task.created_at,
+        'updated_at': Task.updated_at,
+        'task': Task.task,
+        'done': Task.done
+    }
+
+    if sort_by not in allowed_sort_fields:
+        return jsonify({"Error": "sort_by must be one of: created_at, updated_at, task, done"}), 400
+    if order not in ['asc','desc']:
+        return jsonify({"Error": "order must be 'asc' or 'desc'"}), 400
+    if page < 1:
+        return jsonify({"Error": "page must be greater than 0"}), 400
+    if per_page < 1 or per_page > 100:
+        return jsonify({"Error": "per_page must be between 1 and 100"}), 400
+    sort_column=allowed_sort_fields[sort_by]
+    if order=='desc':
+        sort_column=sort_column.desc()
+    if done_param is not None:
+        if done_param.lower()=='true':
+            tasks=Task.query.filter_by(done=True).all()
+        elif done_param.lower()=='false':
+            tasks=Task.query.filter_by(done=False).all()
+        else:
+            return jsonify({"Error": "done must be 'true' or 'false'"}),400
+    else:
+        query = Task.query
+    paginated = query.order_by(sort_column).paginate(page=page, per_page=per_page, error_out=False)
+    return jsonify({
+        "tasks": [t.to_dict() for t in paginated.items],
+        "total": paginated.total,
+        "page": paginated.page,
+        "per_page": paginated.per_page,
+        "total_pages": paginated.pages
+    })
 
 @tasks_bp.route('/tasks', methods=['POST'])
 def add_task():
