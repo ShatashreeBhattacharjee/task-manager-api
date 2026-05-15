@@ -1,4 +1,5 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify,request
+from flask_jwt_extended import jwt_required
 from app import db
 from app.models import Task
 
@@ -41,9 +42,9 @@ def all_get_tasks():
         sort_column=sort_column.desc()
     if done_param is not None:
         if done_param.lower()=='true':
-            tasks=Task.query.filter_by(done=True).all()
+            query=Task.query.filter_by(done=True).all()
         elif done_param.lower()=='false':
-            tasks=Task.query.filter_by(done=False).all()
+            query=Task.query.filter_by(done=False).all()
         else:
             return jsonify({"Error": "done must be 'true' or 'false'"}),400
     else:
@@ -58,6 +59,7 @@ def all_get_tasks():
     })
 
 @tasks_bp.route('/tasks', methods=['POST'])
+@jwt_required()
 def add_task():
     data = request.get_json(silent=True)
     if not data or "task" not in data:
@@ -74,6 +76,7 @@ def add_task():
     return jsonify(new_task.to_dict()), 201
 
 @tasks_bp.route('/tasks/bulk', methods=['POST'])
+@jwt_required()
 def add_task_in_bulk():
     data = request.get_json(silent=True)
     if not data or "tasks" not in data:
@@ -105,6 +108,7 @@ def get_single_task(id):
     return jsonify(task.to_dict()), 200
 
 @tasks_bp.route('/tasks/<int:id>', methods=['DELETE'])
+@jwt_required()
 def delete_task(id):
     task = Task.query.get(id)
     if not task:
@@ -114,6 +118,7 @@ def delete_task(id):
     return jsonify({"Message": "Task deleted"}), 200
 
 @tasks_bp.route('/tasks/<int:id>', methods=['PUT'])
+@jwt_required()
 def update_task(id):
     task = Task.query.get(id)
     if not task:
